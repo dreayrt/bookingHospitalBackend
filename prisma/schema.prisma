@@ -1,0 +1,284 @@
+generator client {
+    provider     = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs" 
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model appointments {
+  id               BigInt               @id @default(autoincrement())
+  patient_id       BigInt
+  doctor_id        BigInt
+  appointment_date DateTime             @db.Date
+  appointment_time DateTime             @db.Time(0)
+  reason           String?              @db.Text
+  status           appointments_status? @default(PENDING)
+  created_at       DateTime?            @default(now()) @db.Timestamp(0)
+  doctors          doctors              @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointment_doctor")
+  patients         patients             @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointment_patient")
+  invoices         invoices[]
+  medical_records  medical_records?
+
+  @@index([doctor_id], map: "fk_appointment_doctor")
+  @@index([patient_id], map: "fk_appointment_patient")
+}
+
+model departments {
+  id          BigInt              @id @default(autoincrement())
+  name        String              @db.VarChar(100)
+  description String?             @db.Text
+  status      departments_status? @default(ACTIVE)
+  created_at  DateTime?           @default(now()) @db.Timestamp(0)
+  doctors     doctors[]
+}
+
+model doctor_schedules {
+  id         BigInt                   @id @default(autoincrement())
+  doctor_id  BigInt
+  work_date  DateTime                 @db.Date
+  start_time DateTime                 @db.Time(0)
+  end_time   DateTime                 @db.Time(0)
+  status     doctor_schedules_status? @default(AVAILABLE)
+  doctors    doctors                  @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_schedule_doctor")
+
+  @@index([doctor_id], map: "fk_schedule_doctor")
+}
+
+model doctors {
+  id               BigInt             @id @default(autoincrement())
+  user_id          BigInt             @unique(map: "user_id")
+  department_id    BigInt?
+  specialization   String?            @db.VarChar(100)
+  license_number   String?            @unique(map: "license_number") @db.VarChar(50)
+  experience_years Int?
+  status           doctors_status?    @default(ACTIVE)
+  appointments     appointments[]
+  doctor_schedules doctor_schedules[]
+  departments      departments?       @relation(fields: [department_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_department")
+  users            users              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_user")
+  medical_records  medical_records[]
+  prescriptions    prescriptions[]
+
+  @@index([department_id], map: "fk_doctor_department")
+}
+
+model invoices {
+  id             BigInt           @id @default(autoincrement())
+  patient_id     BigInt
+  appointment_id BigInt?
+  invoice_code   String           @unique(map: "invoice_code") @db.VarChar(50)
+  total_amount   Decimal          @db.Decimal(12, 2)
+  status         invoices_status? @default(PENDING)
+  issued_at      DateTime?        @default(now()) @db.Timestamp(0)
+  appointments   appointments?    @relation(fields: [appointment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_appointment")
+  patients       patients         @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_patient")
+  payments       payments[]
+
+  @@index([appointment_id], map: "fk_invoice_appointment")
+  @@index([patient_id], map: "fk_invoice_patient")
+}
+
+model medical_records {
+  id             BigInt         @id @default(autoincrement())
+  appointment_id BigInt         @unique(map: "uk_medical_record_appointment")
+  doctor_id      BigInt
+  patient_id     BigInt
+  diagnosis      String?        @db.Text
+  symptoms       String?        @db.Text
+  treatment_plan String?        @db.Text
+  notes          String?        @db.Text
+  created_at     DateTime?      @default(now()) @db.Timestamp(0)
+  appointments   appointments   @relation(fields: [appointment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medical_appointment")
+  doctors        doctors        @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medical_doctor")
+  patients       patients       @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medical_patient")
+  prescriptions  prescriptions?
+
+  @@index([doctor_id], map: "fk_medical_doctor")
+  @@index([patient_id], map: "fk_medical_patient")
+}
+
+model patient_health_metrics {
+  id             BigInt    @id @default(autoincrement())
+  patient_id     BigInt
+  height         Decimal?  @db.Decimal(5, 2)
+  weight         Decimal?  @db.Decimal(5, 2)
+  blood_pressure String?   @db.VarChar(20)
+  heart_rate     Int?
+  temperature    Decimal?  @db.Decimal(4, 2)
+  recorded_by    BigInt?
+  recorded_at    DateTime? @default(now()) @db.Timestamp(0)
+  patients       patients  @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_patient")
+  users          users?    @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_user")
+
+  @@index([patient_id], map: "fk_metric_patient")
+  @@index([recorded_by], map: "fk_metric_user")
+}
+
+model patients {
+  id                     BigInt                   @id @default(autoincrement())
+  user_id                BigInt?                  @unique(map: "user_id")
+  patient_code           String                   @unique(map: "patient_code") @db.VarChar(50)
+  dob                    DateTime?                @db.Date
+  gender                 patients_gender?
+  address                String?                  @db.Text
+  insurance_number       String?                  @db.VarChar(50)
+  blood_type             String?                  @db.VarChar(10)
+  emergency_contact      String?                  @db.VarChar(100)
+  created_at             DateTime?                @default(now()) @db.Timestamp(0)
+  appointments           appointments[]
+  invoices               invoices[]
+  medical_records        medical_records[]
+  patient_health_metrics patient_health_metrics[]
+  users                  users?                   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_user")
+  prescriptions          prescriptions[]
+  room_patients          room_patients[]
+}
+
+model payments {
+  id               BigInt           @id @default(autoincrement())
+  invoice_id       BigInt
+  payment_method   String?          @db.VarChar(50)
+  amount           Decimal?         @db.Decimal(12, 2)
+  paid_at          DateTime?        @default(now()) @db.Timestamp(0)
+  transaction_code String?          @db.VarChar(100)
+  status           payments_status? @default(PENDING)
+  invoices         invoices         @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_invoice")
+
+  @@index([invoice_id], map: "fk_payment_invoice")
+}
+
+model prescription_details {
+  id              BigInt        @id @default(autoincrement())
+  prescription_id BigInt
+  medicine_name   String        @db.VarChar(100)
+  dosage          String?       @db.VarChar(100)
+  frequency       String?       @db.VarChar(100)
+  duration        String?       @db.VarChar(100)
+  instruction     String?       @db.Text
+  prescriptions   prescriptions @relation(fields: [prescription_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_prescription_detail")
+
+  @@index([prescription_id], map: "fk_prescription_detail")
+}
+
+model prescriptions {
+  id                   BigInt                 @id @default(autoincrement())
+  medical_record_id    BigInt                 @unique(map: "uk_prescription_medical_record")
+  doctor_id            BigInt
+  patient_id           BigInt
+  created_at           DateTime?              @default(now()) @db.Timestamp(0)
+  prescription_details prescription_details[]
+  doctors              doctors                @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescription_doctor")
+  medical_records      medical_records        @relation(fields: [medical_record_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescription_medical")
+  patients             patients               @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescription_patient")
+
+  @@index([doctor_id], map: "fk_prescription_doctor")
+  @@index([patient_id], map: "fk_prescription_patient")
+}
+
+model roles {
+  id          BigInt  @id @default(autoincrement())
+  name        String  @unique(map: "name") @db.VarChar(50)
+  description String? @db.VarChar(255)
+  users       users[]
+}
+
+model room_patients {
+  id             BigInt    @id @default(autoincrement())
+  room_id        BigInt
+  patient_id     BigInt
+  check_in_time  DateTime  @db.DateTime(0)
+  check_out_time DateTime? @db.DateTime(0)
+  rooms          rooms     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_patients_ibfk_1")
+  patients       patients  @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "room_patients_ibfk_2")
+
+  @@index([patient_id], map: "patient_id")
+  @@index([room_id], map: "room_id")
+}
+
+model rooms {
+  id            BigInt          @id @default(autoincrement())
+  room_code     String          @unique(map: "room_code") @db.VarChar(20)
+  room_name     String          @db.VarChar(100)
+  description   String?         @db.Text
+  max_capacity  Int             @default(1)
+  status        rooms_status?   @default(ACTIVE)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  room_patients room_patients[]
+}
+
+model users {
+  id                     BigInt                   @id @default(autoincrement())
+  role_id                BigInt
+  username               String                   @unique(map: "username") @db.VarChar(50)
+  email                  String                   @unique(map: "email") @db.VarChar(100)
+  password               String                   @db.VarChar(255)
+  full_name              String                   @db.VarChar(100)
+  phone                  String?                  @db.VarChar(20)
+  status                 users_status?            @default(ACTIVE)
+  avatar_url             String?                  @db.VarChar(500)
+  created_at             DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(0)
+  doctors                doctors?
+  patient_health_metrics patient_health_metrics[]
+  patients               patients?
+  roles                  roles                    @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_role")
+
+  @@index([role_id], map: "fk_user_role")
+}
+
+enum departments_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum patients_gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum doctor_schedules_status {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum invoices_status {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum rooms_status {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum appointments_status {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum doctors_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum payments_status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum users_status {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
