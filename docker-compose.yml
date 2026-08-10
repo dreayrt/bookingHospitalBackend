@@ -14,10 +14,8 @@ services:
       - DB_HOST=mariadb
       - REDIS_HOST=redis
     depends_on:
-      mariadb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mariadb
+      - redis
 
   # 2. MariaDB Database Service
   mariadb:
@@ -33,11 +31,6 @@ services:
       - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "healthcheck-sh", "--connect", "--innodb_initialized"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   # 3. Redis Cache Service
   redis:
@@ -48,11 +41,6 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
 volumes:
   mariadb_data:
