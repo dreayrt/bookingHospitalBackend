@@ -11,16 +11,15 @@ services:
     env_file:
       - .env
     environment:
-      - DB_HOST=mariadb
+      - DB_HOST=mysql
       - REDIS_HOST=redis
     depends_on:
-      - mariadb
-      - redis
+      - mysql
 
   # 2. MySQL Database Service
-  mariadb:
+  mysql:
     image: mysql:8.0
-    container_name: booking_mariadb
+    container_name: booking_mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
@@ -30,7 +29,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
 
   # 3. Redis Cache Service
   redis:
@@ -43,7 +42,7 @@ services:
       - redis_data:/data
 
 volumes:
-  mariadb_data:
+  mysql_data:
     driver: local
   redis_data:
     driver: local
