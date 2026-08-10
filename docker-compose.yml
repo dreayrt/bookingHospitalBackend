@@ -17,9 +17,9 @@ services:
       - mariadb
       - redis
 
-  # 2. MariaDB Database Service
+  # 2. MySQL Database Service
   mariadb:
-    image: mariadb:11
+    image: mysql:8.0
     container_name: booking_mariadb
     restart: always
     environment:
